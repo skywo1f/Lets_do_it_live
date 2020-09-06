@@ -1,0 +1,23 @@
+#include "BluetoothSerial.h"
+
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run 'make menuconfig' to and enable it
+#endif
+
+BluetoothSerial SerialBT;
+
+int sensorValue;
+
+void setup() {
+  Serial.begin(115200);
+  SerialBT.begin("gas_detector");
+  Serial.println("The service started, pair it with bluetooth");
+}
+
+void loop() {
+  sensorValue = analogRead(36);
+  SerialBT.println(sensorValue,DEC);
+  Serial.println(sensorValue);
+  SerialBT.flush();
+}
+  
