@@ -1,0 +1,6 @@
+[submodule "rpi_ws281x"]
+	path = rpi_ws281x
+	url = https://github.com/jgarff/rpi_ws281x.git
+[submodule "openBass/rpi_ws281x-python"]
+	path = openBass/rpi_ws281x-python
+	url = https://github.com/jgarff/rpi_ws281x.git
