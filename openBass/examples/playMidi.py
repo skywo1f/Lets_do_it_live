@@ -40,6 +40,11 @@ gString = [98,104,110,117,123,131,139,147,156,165,175,185,196,208,220,233,247,26
 data = []
 times = []
 
+def readChannel(channel):
+  val = spi.xfer2([1,(8+channel)<<4,0])
+  data = ((val[1]&3) << 8) + val[2]
+  return data
+
 def noteToFreq(note):
     freq = (2^(note-69)/12)*440
     return freq
@@ -116,6 +121,7 @@ def showNote():
 
     while True:
         for i in range(len(data)):
+            vry_pos = readChannel(vrx_channel)
             time.sleep(times[i])
             clearNote(eNum,strip)             #erase the previous note
             time.sleep(ledSleep)
