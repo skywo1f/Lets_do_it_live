@@ -1,12 +1,15 @@
+print("starting demo")
 import time
 from rpi_ws281x import *
 import argparse
 import cello
 #import openNotes as cello
 #import cello
-import spidev
 import os
+import threading
+import math
 
+print("finished importing libraries")
 # LED strip configuration:
 LED_COUNT      = 80      # Number of LED pixels.
 LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
@@ -20,15 +23,6 @@ LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 NORMAL_BRIGHT  = 4
 tempo = 2500
 
-swt_channel = 0
-vrx_channel = 1
-vry_channel = 2
-
-# Spi oeffnen
-spi = spidev.SpiDev()
-spi.open(0,0)
-spi.max_speed_hz=1000000
-
 #bass info
 eString = [41,44,46,49,52,55,58,62,65,69,73,78,82,87,92,98,104,110,117,123,131]
 aString = [55,58,62,65,69,73,78,82,87,92,98,104,110,117,123,131,139,147,156,165,175]
@@ -40,13 +34,13 @@ gString = [98,104,110,117,123,131,139,147,156,165,175,185,196,208,220,233,247,26
 data = []
 times = []
 
-def readChannel(channel):
-  val = spi.xfer2([1,(8+channel)<<4,0])
-  data = ((val[1]&3) << 8) + val[2]
-  return data
+
 
 def noteToFreq(note):
-    freq = (2^(note-69)/12)*440
+#    print(note)
+    thisNote = int(note)
+#    freq = (2^(thisNote-69)/12)*440
+    freq = math.pow(2,(thisNote-69)/12)*(440)
     return freq
 
 def loadMidi():
@@ -107,22 +101,23 @@ def clearNote(idx,strip):
     strip.show()
 
 def showNote():
+    print("initializing leds")
     # Create NeoPixel object with appropriate configuration.
     strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
     # Intialize the library (must be called once before other functions).
     strip.begin()
     loadMidi()
-    localToggle = toggleHz
     eNum = -1
     aNum = -1
     dNum = -1
     gNum = -1
     ledSleep = 0.01
-
+    print("starting")
     while True:
         for i in range(len(data)):
-            vry_pos = readChannel(vrx_channel)
-            time.sleep(times[i])
+#            print(times[i])
+            thisTime = float(times[i])/1000.0
+            time.sleep(thisTime)
             clearNote(eNum,strip)             #erase the previous note
             time.sleep(ledSleep)
             clearNote(aNum,strip)             #erase the previous note
@@ -133,6 +128,7 @@ def showNote():
             time.sleep(ledSleep)
             thisHz = noteToFreq(data[i])
             for i in range(len(eString) - 1):
+#                print(thisHz)
                 if (thisHz >= eString[i] and thisHz < eString[i + 1]):
                     eNum = sumUp(0,i)                 #grab the light location
                     if not i:
