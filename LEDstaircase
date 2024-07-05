@@ -1,0 +1,113 @@
+#include "Adafruit_VL53L0X.h"
+#include <Adafruit_NeoPixel.h>
+
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
+#define LED_PIN     6
+#define LED_COUNT  150
+#define BRIGHTNESS 50
+#define MAX_WAVES  5
+
+Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRBW + NEO_KHZ800);
+
+int lastDistance = -1;
+int distanceThreshold = 20;
+int triggerThreshold = 700;
+int belowThresholdCount = 0;
+int requiredConsecutiveSteps = 2;
+
+struct Wave {
+  int position;
+  bool active;
+};
+
+Wave waves[MAX_WAVES];
+
+void setup() {
+  Serial.begin(9600);
+  while (! Serial) {
+    delay(1);
+  }
+  
+  Serial.println("Adafruit VL53L0X and NeoPixel test");
+  if (!lox.begin()) {
+    Serial.println(F("Failed to boot VL53L0X"));
+    while(1);
+  }
+  Serial.println(F("VL53L0X API Simple Ranging example\n\n")); 
+  
+  strip.begin();
+  strip.show();            // Turn OFF all pixels ASAP
+  strip.setBrightness(BRIGHTNESS);
+
+  for (int i = 0; i < MAX_WAVES; i++) {
+    waves[i].active = false;
+    waves[i].position = 0;
+  }
+}
+
+void loop() {
+  VL53L0X_RangingMeasurementData_t measure;
+  lox.rangingTest(&measure, false);
+
+  if (measure.RangeStatus != 4) {  // phase failures have incorrect data
+    Serial.print("Distance (mm): ");
+    Serial.println(measure.RangeMilliMeter);
+    int currentDistance = measure.RangeMilliMeter;
+    
+    if (currentDistance < triggerThreshold) {
+      belowThresholdCount++;
+    } else {
+      belowThresholdCount = 0; // Reset the counter if the value goes above the threshold
+    }
+
+    if (belowThresholdCount >= requiredConsecutiveSteps) {
+      startWave();
+      belowThresholdCount = 0; // Reset the counter after triggering
+    }
+
+    lastDistance = currentDistance;
+  } else {
+    Serial.println(" out of range ");
+  }
+
+  updateWaves();
+
+  delay(10);
+}
+
+void startWave() {
+  for (int i = 0; i < MAX_WAVES; i++) {
+    if (!waves[i].active) {
+      waves[i].active = true;
+      waves[i].position = 0;
+      break;
+    }
+  }
+}
+
+void updateWaves() {
+  int waveSpeed = 10; // Speed of the wave in milliseconds
+  int waveWidth = 10; // Width of the Gaussian wave
+
+  strip.clear();
+
+  for (int i = 0; i < MAX_WAVES; i++) {
+    if (waves[i].active) {
+      for (int j = 0; j < strip.numPixels(); j++) {
+        int distanceFromWave = abs(j - waves[i].position);
+        if (distanceFromWave < waveWidth) {
+          float brightness = exp(-0.5 * pow((float)distanceFromWave / waveWidth, 2.0));
+          uint32_t color = strip.gamma32(strip.ColorHSV((uint16_t)(65536L * j / strip.numPixels()), 255, (uint8_t)(brightness * 255)));
+          strip.setPixelColor(j, color); // Custom color based on position
+        }
+      }
+      waves[i].position++;
+      if (waves[i].position >= strip.numPixels() + waveWidth) {
+        waves[i].active = false;
+      }
+    }
+  }
+
+  strip.show();
+}
